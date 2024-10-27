@@ -1,0 +1,36 @@
+#write foe me iwant to connect remotly with my server by ssh
+name: Pull
+on:
+  pull_request:
+    branches:
+      - main
+      jobs:
+        test:
+          runs-on: ubuntu-latest
+          steps:
+            - uses: actions/checkout@v2
+            - name: Set up Python 3.8
+              uses: actions/setup-python@v2
+              with:
+                python-version: 3.8
+            - name: Install dependencies
+              run: |
+                python -m pip install --upgrade pip
+                pip install flake8 pytest
+                if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+            - name: Lint with flake8
+              run: |
+                flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+                flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+            - name: Test with pytest
+              run: |
+                pytest
+            - name: Connect to server
+              uses: webfactory/ssh-agent@v0.5.3
+              with:
+                ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+                ssh-known-hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+            - name: Deploy
+              run: |
+                ssh -o StrictHostKeyChecking=no -i ${{ secrets.SSH_PRIVATE_KEY }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'cd /var/www/flask-app && git pull'
+                ssh -o StrictHostKeyChecking=no -i ${{ secrets.SSH_PRIVATE_KEY }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'cd /var/www/flask-app && docker-compose up -d --build'
